@@ -196,15 +196,15 @@ function calculateInvestmentGrowth(initialAmount, monthlyContribution, annualRet
 }
 
 /**
- * Compare investing down payment vs. building home equity
- * @param {number} downPayment - Down payment amount
+ * Compare remaining portfolio vs. building home equity
+ * @param {number} portfolioAmount - Starting portfolio amount (typically current portfolio - down payment)
  * @param {Array} equitySchedule - Equity buildup schedule
  * @param {number} investmentReturn - Expected annual investment return (percentage)
  * @returns {Object} Comparison data
  */
-function compareInvestmentVsEquity(downPayment, equitySchedule, investmentReturn) {
+function compareInvestmentVsEquity(portfolioAmount, equitySchedule, investmentReturn) {
     const years = equitySchedule.length;
-    const investmentGrowth = calculateInvestmentGrowth(downPayment, 0, investmentReturn, years);
+    const investmentGrowth = calculateInvestmentGrowth(portfolioAmount, 0, investmentReturn, years);
 
     const comparison = {
         equity: equitySchedule,

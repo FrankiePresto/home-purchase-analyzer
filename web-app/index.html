@@ -301,6 +301,12 @@
                             <label for="current-age">Current Age</label>
                             <input type="number" id="current-age" min="18" max="75" step="1" value="30">
                         </div>
+
+                        <div class="form-group">
+                            <label for="savings-milestone">Savings Milestone Goal ($)</label>
+                            <input type="number" id="savings-milestone" min="0" step="10000" value="500000">
+                            <small>Track time to reach this savings goal</small>
+                        </div>
                     </div>
                 </div>
 
@@ -311,19 +317,55 @@
 
                     <div class="comparison-summary">
                         <div class="card">
-                            <h4>Annual Housing Cost Difference</h4>
+                            <h4>Annual Housing Cost</h4>
+                            <p class="card-value" id="annual-cost-a">-</p>
+                            <p class="card-detail" id="scenario-a-name">Scenario A</p>
+                        </div>
+                        <div class="card">
+                            <h4>Annual Housing Cost</h4>
+                            <p class="card-value" id="annual-cost-b">-</p>
+                            <p class="card-detail" id="scenario-b-name">Scenario B</p>
+                        </div>
+                        <div class="card">
+                            <h4>Annual Cost Difference</h4>
                             <p class="card-value" id="annual-cost-diff">-</p>
                             <p class="card-detail" id="cost-diff-winner">-</p>
                         </div>
+                    </div>
+
+                    <div class="comparison-summary">
                         <div class="card">
                             <h4>Monthly Discretionary Income</h4>
+                            <p class="card-value" id="discretionary-a">-</p>
+                            <p class="card-detail">Scenario A after all expenses</p>
+                        </div>
+                        <div class="card">
+                            <h4>Monthly Discretionary Income</h4>
+                            <p class="card-value" id="discretionary-b">-</p>
+                            <p class="card-detail">Scenario B after all expenses</p>
+                        </div>
+                        <div class="card">
+                            <h4>Discretionary Difference</h4>
                             <p class="card-value" id="discretionary-diff">-</p>
-                            <p class="card-detail">Difference after all expenses</p>
+                            <p class="card-detail" id="discretionary-winner">-</p>
+                        </div>
+                    </div>
+
+                    <div class="comparison-summary">
+                        <div class="card">
+                            <h4>Monthly to Investments</h4>
+                            <p class="card-value" id="investment-contribution-a">-</p>
+                            <p class="card-detail">Scenario A contributions</p>
                         </div>
                         <div class="card">
                             <h4>Monthly to Investments</h4>
+                            <p class="card-value" id="investment-contribution-b">-</p>
+                            <p class="card-detail">Scenario B contributions</p>
+                        </div>
+                        <div class="card">
+                            <h4>Investment Difference</h4>
                             <p class="card-value" id="investment-contribution-diff">-</p>
-                            <p class="card-detail">More invested with better choice</p>
+                            <p class="card-detail" id="investment-winner">-</p>
                         </div>
                     </div>
 
@@ -339,9 +381,9 @@
                             <p class="card-detail">When net worth equalizes</p>
                         </div>
                         <div class="card">
-                            <h4>Emergency Fund Coverage</h4>
-                            <p class="card-value" id="emergency-fund-diff">-</p>
-                            <p class="card-detail">Months of expenses covered</p>
+                            <h4>Savings Goal Timeline</h4>
+                            <p class="card-value" id="milestone-diff">-</p>
+                            <p class="card-detail" id="milestone-detail">-</p>
                         </div>
                     </div>
 

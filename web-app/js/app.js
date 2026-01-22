@@ -614,8 +614,10 @@ function handleUpdateAnalysis() {
     );
 
     // Calculate investment vs equity
+    // FIXED: Use current portfolio minus down payment as starting point
+    const portfolioAfterDownPayment = Math.max(0, incomeInfo.currentPortfolio - propertyInfo.downPaymentAmount);
     const investmentComparison = compareInvestmentVsEquity(
-        propertyInfo.downPaymentAmount,
+        portfolioAfterDownPayment,
         equityData,
         incomeInfo.investmentReturn
     );
@@ -697,6 +699,7 @@ function handleCompareHouses() {
     const savingsRate = parseFloat(document.getElementById('savings-rate').value) || 50;
     const currentAge = parseInt(document.getElementById('current-age').value) || 30;
     const retirementAge = parseInt(document.getElementById('retirement-age').value) || 65;
+    const savingsMilestone = parseFloat(document.getElementById('savings-milestone').value) || 500000;
     const investmentReturn = parseFloat(document.getElementById('investment-return').value) || 8.0;
     const appreciationRate = parseFloat(document.getElementById('appreciation-rate').value) || 3.0;
     const timeframe = parseInt(document.getElementById('timeframe').value) || 30;
@@ -709,6 +712,7 @@ function handleCompareHouses() {
         savingsRate,
         currentAge,
         retirementAge,
+        savingsMilestone,
         investmentReturn,
         appreciationRate,
         timeframe
@@ -724,12 +728,12 @@ function handleCompareHouses() {
 /**
  * Run comprehensive comparison between two scenarios
  */
-function runComprehensiveComparison(scenarioA, scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe) {
+function runComprehensiveComparison(scenarioA, scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, savingsMilestone, investmentReturn, appreciationRate, timeframe) {
     // Calculate for Scenario A
-    const resultsA = calculateScenarioFinancials(scenarioA, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe);
+    const resultsA = calculateScenarioFinancials(scenarioA, otherExpenses, savingsRate, currentAge, retirementAge, savingsMilestone, investmentReturn, appreciationRate, timeframe);
 
     // Calculate for Scenario B
-    const resultsB = calculateScenarioFinancials(scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe);
+    const resultsB = calculateScenarioFinancials(scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, savingsMilestone, investmentReturn, appreciationRate, timeframe);
 
     // Compare results
     return {
@@ -743,15 +747,15 @@ function runComprehensiveComparison(scenarioA, scenarioB, otherExpenses, savings
 /**
  * Calculate comprehensive financials for a scenario
  */
-function calculateScenarioFinancials(scenario, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe) {
+function calculateScenarioFinancials(scenario, otherExpenses, savingsRate, currentAge, retirementAge, savingsMilestone, investmentReturn, appreciationRate, timeframe) {
     const monthlyIncome = scenario.incomeInfo.annualIncome / 12;
     const monthlyHousingCost = scenario.calculations.totalMonthlyCost;
     const monthlyTotalExpenses = monthlyHousingCost + otherExpenses;
     const monthlyDiscretionary = monthlyIncome - monthlyTotalExpenses;
-    const monthlyToInvestments = (monthlyDiscretionary * savingsRate) / 100;
+    const monthlyToInvestments = monthlyDiscretionary > 0 ? (monthlyDiscretionary * savingsRate) / 100 : 0;
 
-    // Starting portfolio after down payment
-    const startingPortfolio = scenario.incomeInfo.currentPortfolio - scenario.propertyInfo.downPaymentAmount;
+    // Starting portfolio after down payment - CRITICAL FIX
+    const startingPortfolio = Math.max(0, scenario.incomeInfo.currentPortfolio - scenario.propertyInfo.downPaymentAmount);
 
     // Calculate equity buildup
     const equityData = calculateEquityOverTime(
@@ -794,19 +798,13 @@ function calculateScenarioFinancials(scenario, otherExpenses, savingsRate, curre
         };
     });
 
-    // Emergency fund coverage (months of total expenses)
-    const monthlyExpenses = monthlyTotalExpenses;
-    const emergencyFundMonths = startingPortfolio > 0 ? startingPortfolio / monthlyExpenses : 0;
-
     // Financial freedom metrics
-    const annualExpenses = monthlyExpenses * 12;
+    const annualExpenses = monthlyTotalExpenses * 12;
     const financialIndependenceNumber = annualExpenses * 25; // 4% rule
     const yearsToFI = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, financialIndependenceNumber);
 
-    // Milestone timelines ($100k, $500k, $1M)
-    const yearsTo100k = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 100000);
-    const yearsTo500k = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 500000);
-    const yearsTo1M = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 1000000);
+    // Custom milestone timeline
+    const yearsToMilestone = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, savingsMilestone);
 
     return {
         scenario: scenario,
@@ -819,11 +817,9 @@ function calculateScenarioFinancials(scenario, otherExpenses, savingsRate, curre
         netWorthData: netWorthData,
         finalNetWorth: netWorthData[timeframe - 1]?.totalNetWorth || 0,
         retirementPortfolio: retirementPortfolio,
-        emergencyFundMonths: emergencyFundMonths,
         yearsToFI: yearsToFI,
-        yearsTo100k: yearsTo100k,
-        yearsTo500k: yearsTo500k,
-        yearsTo1M: yearsTo1M
+        yearsToMilestone: yearsToMilestone,
+        milestoneAmount: savingsMilestone
     };
 }
 
@@ -858,11 +854,8 @@ function calculateDifferences(resultsA, resultsB) {
         investments: resultsA.monthlyToInvestments - resultsB.monthlyToInvestments,
         netWorth: resultsA.finalNetWorth - resultsB.finalNetWorth,
         retirementPortfolio: resultsA.retirementPortfolio - resultsB.retirementPortfolio,
-        emergencyFund: resultsA.emergencyFundMonths - resultsB.emergencyFundMonths,
         yearsToFI: resultsA.yearsToFI - resultsB.yearsToFI,
-        milestone100k: resultsA.yearsTo100k - resultsB.yearsTo100k,
-        milestone500k: resultsA.yearsTo500k - resultsB.yearsTo500k,
-        milestone1M: resultsA.yearsTo1M - resultsB.yearsTo1M
+        yearsToMilestone: resultsA.yearsToMilestone - resultsB.yearsToMilestone
     };
 }
 
@@ -904,64 +897,74 @@ function determineWinner(resultsA, resultsB, timeframe) {
 function displayComparisonResults(comparison, timeframe) {
     const { scenarioA, scenarioB, differences, winner } = comparison;
 
-    // Annual cost difference
+    // Scenario names
+    document.getElementById('scenario-a-name').textContent = scenarioA.scenario.name;
+    document.getElementById('scenario-b-name').textContent = scenarioB.scenario.name;
+
+    // Annual housing costs - show both actual values
+    document.getElementById('annual-cost-a').textContent = formatCurrency(scenarioA.annualHousingCost);
+    document.getElementById('annual-cost-b').textContent = formatCurrency(scenarioB.annualHousingCost);
+
     const costDiffAbs = Math.abs(differences.annualCost);
-    const costWinner = differences.annualCost > 0 ? 'B' : 'A';
+    const costWinner = differences.annualCost > 0 ? scenarioB.scenario.name : scenarioA.scenario.name;
     document.getElementById('annual-cost-diff').textContent = formatCurrency(costDiffAbs);
     document.getElementById('cost-diff-winner').textContent =
-        `Scenario ${costWinner} costs ${formatCurrency(costDiffAbs)} less per year`;
+        `${costWinner} costs less`;
 
-    // Discretionary income difference
+    // Monthly discretionary income - show both actual values
+    document.getElementById('discretionary-a').textContent = formatCurrency(scenarioA.monthlyDiscretionary);
+    document.getElementById('discretionary-b').textContent = formatCurrency(scenarioB.monthlyDiscretionary);
+
     const discDiffAbs = Math.abs(differences.discretionary);
-    const discWinner = differences.discretionary > 0 ? 'A' : 'B';
+    const discWinner = differences.discretionary > 0 ? scenarioA.scenario.name : scenarioB.scenario.name;
     document.getElementById('discretionary-diff').textContent = formatCurrency(discDiffAbs);
+    document.getElementById('discretionary-winner').textContent = `${discWinner} has more`;
 
-    // Investment contribution difference
+    // Monthly investment contributions - show both actual values
+    document.getElementById('investment-contribution-a').textContent = formatCurrency(scenarioA.monthlyToInvestments);
+    document.getElementById('investment-contribution-b').textContent = formatCurrency(scenarioB.monthlyToInvestments);
+
     const invDiffAbs = Math.abs(differences.investments);
-    const invWinner = differences.investments > 0 ? 'A' : 'B';
+    const invWinner = differences.investments > 0 ? scenarioA.scenario.name : scenarioB.scenario.name;
     document.getElementById('investment-contribution-diff').textContent = formatCurrency(invDiffAbs);
+    document.getElementById('investment-winner').textContent = `${invWinner} invests more`;
 
     // Net worth winner
     document.getElementById('comparison-timeframe').textContent = timeframe;
-    document.getElementById('networth-winner').textContent = `Scenario ${winner.winner} Wins`;
+    const networthWinner = winner.winner === 'A' ? scenarioA.scenario.name : scenarioB.scenario.name;
+    document.getElementById('networth-winner').textContent = `${networthWinner} Wins`;
     document.getElementById('networth-diff').textContent = `${formatCurrency(winner.difference)} more wealth`;
 
     // Break-even
     document.getElementById('breakeven-year').textContent =
         winner.breakEvenYear ? `Year ${winner.breakEvenYear}` : 'No crossover';
 
-    // Emergency fund
-    const efDiffAbs = Math.abs(differences.emergencyFund);
-    const efWinner = differences.emergencyFund > 0 ? 'A' : 'B';
-    document.getElementById('emergency-fund-diff').textContent = efDiffAbs.toFixed(1);
-
     // Retirement portfolio
     const retDiffAbs = Math.abs(differences.retirementPortfolio);
-    const retWinner = differences.retirementPortfolio > 0 ? 'A' : 'B';
+    const retWinner = differences.retirementPortfolio > 0 ? scenarioA.scenario.name : scenarioB.scenario.name;
     document.getElementById('retirement-diff').textContent = formatCurrency(retDiffAbs);
     document.getElementById('retirement-detail').textContent =
-        `Scenario ${retWinner} has ${formatCurrency(retDiffAbs)} more`;
+        `${retWinner} has more at retirement`;
 
     // Financial freedom
-    if (differences.yearsToFI !== Infinity && differences.yearsToFI !== -Infinity) {
+    if (differences.yearsToFI !== Infinity && differences.yearsToFI !== -Infinity && !isNaN(differences.yearsToFI)) {
         const fiDiffAbs = Math.abs(differences.yearsToFI);
-        const fiWinner = differences.yearsToFI > 0 ? 'B' : 'A';
-        document.getElementById('freedom-score-diff').textContent = `${fiDiffAbs} years`;
+        const fiWinner = differences.yearsToFI > 0 ? scenarioB.scenario.name : scenarioA.scenario.name;
+        document.getElementById('freedom-score-diff').textContent = `${fiDiffAbs.toFixed(1)} years`;
     } else {
         document.getElementById('freedom-score-diff').textContent = 'N/A';
     }
 
-    // Milestone timeline
-    let milestoneText = '';
-    if (differences.milestone100k !== Infinity && differences.milestone100k !== -Infinity) {
-        const m100kDiff = Math.abs(differences.milestone100k);
-        const m100kWinner = differences.milestone100k > 0 ? 'B' : 'A';
-        milestoneText = `${m100kDiff} years sooner`;
-        document.getElementById('milestone-diff').textContent = milestoneText;
-        document.getElementById('milestone-detail').textContent = `Scenario ${m100kWinner} reaches $100k sooner`;
+    // Custom milestone timeline
+    if (differences.yearsToMilestone !== Infinity && differences.yearsToMilestone !== -Infinity && !isNaN(differences.yearsToMilestone)) {
+        const milestoneDiff = Math.abs(differences.yearsToMilestone);
+        const milestoneWinner = differences.yearsToMilestone > 0 ? scenarioB.scenario.name : scenarioA.scenario.name;
+        document.getElementById('milestone-diff').textContent = `${milestoneDiff.toFixed(1)} years`;
+        document.getElementById('milestone-detail').textContent =
+            `${milestoneWinner} reaches ${formatCurrency(scenarioA.milestoneAmount)} sooner`;
     } else {
         document.getElementById('milestone-diff').textContent = 'N/A';
-        document.getElementById('milestone-detail').textContent = 'Unable to reach milestone';
+        document.getElementById('milestone-detail').textContent = 'Adjust savings parameters';
     }
 
     // Render comparison chart
