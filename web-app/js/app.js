@@ -115,6 +115,15 @@ function setupEventListeners() {
             const years = parseInt(this.dataset.years);
             document.getElementById('timeframe').value = years;
             appState.analysisTimeframe = years;
+
+            // Auto-update analysis if a scenario is selected
+            const selectedScenario = document.getElementById('analysis-scenario-select').value;
+            if (selectedScenario && appState.selectedTab === 'analysis') {
+                handleUpdateAnalysis();
+            }
+
+            // Update house comparison winner display
+            document.getElementById('winner-timeframe').textContent = years;
         });
     });
 
@@ -125,6 +134,28 @@ function setupEventListeners() {
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.classList.toggle('active', parseInt(btn.dataset.years) === appState.analysisTimeframe);
         });
+        // Auto-update analysis if a scenario is selected
+        const selectedScenario = document.getElementById('analysis-scenario-select').value;
+        if (selectedScenario && appState.selectedTab === 'analysis') {
+            handleUpdateAnalysis();
+        }
+        // Update house comparison winner display
+        document.getElementById('winner-timeframe').textContent = this.value;
+    });
+
+    // Appreciation rate change - auto-update analysis
+    document.getElementById('appreciation-rate').addEventListener('change', function() {
+        const selectedScenario = document.getElementById('analysis-scenario-select').value;
+        if (selectedScenario && appState.selectedTab === 'analysis') {
+            handleUpdateAnalysis();
+        }
+    });
+
+    document.getElementById('appreciation-rate-number').addEventListener('change', function() {
+        const selectedScenario = document.getElementById('analysis-scenario-select').value;
+        if (selectedScenario && appState.selectedTab === 'analysis') {
+            handleUpdateAnalysis();
+        }
     });
 }
 
@@ -147,6 +178,8 @@ function switchTab(tabName) {
     // Load tab-specific data
     if (tabName === 'compare') {
         displayScenarioList();
+    } else if (tabName === 'analysis') {
+        populateAnalysisScenarioSelector();
     }
 }
 
@@ -307,6 +340,7 @@ function handleSaveScenario() {
         alert(`Scenario "${name}" saved successfully!`);
         appState.savedScenarios = loadScenarios();
         displayScenarioList();
+        populateAnalysisScenarioSelector(); // Update analysis dropdown
     } else {
         alert('Error saving scenario. Please try again.');
     }
@@ -393,6 +427,7 @@ function handleDeleteScenario(id) {
         if (success) {
             appState.savedScenarios = loadScenarios();
             displayScenarioList();
+            populateAnalysisScenarioSelector(); // Update analysis dropdown
         } else {
             alert('Error deleting scenario.');
         }
@@ -487,20 +522,65 @@ function displayComparison(scenarios) {
 }
 
 /**
+ * Populate the analysis scenario selector dropdown
+ */
+function populateAnalysisScenarioSelector() {
+    const selector = document.getElementById('analysis-scenario-select');
+    const scenarios = loadScenarios();
+
+    // Clear existing options except the first one
+    selector.innerHTML = '<option value="">-- Select a saved scenario or use Calculator data --</option>';
+
+    // Add current calculator scenario if available
+    if (appState.currentScenario) {
+        const option = document.createElement('option');
+        option.value = 'current';
+        option.textContent = 'Current Calculator Data';
+        selector.appendChild(option);
+    }
+
+    // Add saved scenarios
+    scenarios.forEach(scenario => {
+        const option = document.createElement('option');
+        option.value = scenario.id;
+        option.textContent = `${scenario.name} (${formatCurrency(scenario.propertyInfo.purchasePrice)})`;
+        selector.appendChild(option);
+    });
+
+    // Set up change listener
+    selector.onchange = function() {
+        if (this.value) {
+            handleUpdateAnalysis();
+        }
+    };
+}
+
+/**
  * Handle update analysis button click
  */
 function handleUpdateAnalysis() {
-    if (!appState.currentScenario) {
-        alert('Please calculate a scenario in the Calculator tab first.');
+    const selectedScenarioId = document.getElementById('analysis-scenario-select').value;
+
+    let scenario;
+    if (selectedScenarioId === 'current') {
+        scenario = appState.currentScenario;
+    } else if (selectedScenarioId) {
+        scenario = getScenario(selectedScenarioId);
+    } else {
+        scenario = appState.currentScenario;
+    }
+
+    if (!scenario) {
+        alert('Please either:\n1. Calculate a scenario in the Calculator tab, or\n2. Select a saved scenario from the dropdown above');
         return;
     }
 
     const timeframe = parseInt(document.getElementById('timeframe').value) || 30;
     const appreciationRate = parseFloat(document.getElementById('appreciation-rate').value) || 3.0;
 
-    const propertyInfo = appState.currentScenario.propertyInfo;
-    const incomeInfo = appState.currentScenario.incomeInfo;
-    const calculations = appState.currentScenario.calculations;
+    const propertyInfo = scenario.propertyInfo;
+    const incomeInfo = scenario.incomeInfo;
+    const calculations = scenario.calculations;
 
     // Calculate equity buildup
     const equityData = calculateEquityOverTime(
