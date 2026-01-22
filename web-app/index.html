@@ -186,7 +186,7 @@
         <!-- Tab 3: Analysis -->
         <section id="analysis-tab" class="tab-content">
             <div class="analysis-controls">
-                <h2>Long-term Analysis</h2>
+                <h2>Long-term Financial Analysis</h2>
 
                 <div class="form-group">
                     <label for="analysis-scenario-select">Analyze Scenario</label>
@@ -196,52 +196,143 @@
                     <small>Select a saved scenario to analyze, or use the current Calculator data</small>
                 </div>
 
-                <div class="controls-grid">
-                    <div class="form-group">
-                        <label for="timeframe">Timeframe (years)</label>
-                        <div class="preset-buttons">
-                            <button class="preset-btn" data-years="1">1yr</button>
-                            <button class="preset-btn" data-years="5">5yr</button>
-                            <button class="preset-btn" data-years="10">10yr</button>
-                            <button class="preset-btn" data-years="20">20yr</button>
-                            <button class="preset-btn active" data-years="30">30yr</button>
+                <!-- Consolidated Financial Settings -->
+                <div class="financial-settings-panel">
+                    <h3>Financial Settings</h3>
+
+                    <!-- Income Settings -->
+                    <div class="settings-section">
+                        <h4>Income Growth</h4>
+                        <div class="controls-grid">
+                            <div class="form-group">
+                                <label for="annual-raise">Annual Raise (%)</label>
+                                <input type="number" id="annual-raise" min="0" max="20" step="0.1" value="3">
+                                <small>Automatic yearly income increase</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Income Adjustments</label>
+                                <button id="add-income-adjustment-btn" class="btn btn-secondary btn-small">Add Year Override</button>
+                                <div id="income-adjustments-list" class="adjustments-list"></div>
+                            </div>
                         </div>
-                        <input type="number" id="timeframe" min="1" max="40" value="30">
                     </div>
 
-                    <div class="form-group">
-                        <label for="appreciation-rate">Home Appreciation Rate (%)</label>
-                        <div class="slider-group">
-                            <input type="range" id="appreciation-rate" min="0" max="10" step="0.1" value="3">
-                            <input type="number" id="appreciation-rate-number" min="0" max="10" step="0.1" value="3">
-                            <span>%</span>
+                    <!-- Expenses & Savings -->
+                    <div class="settings-section">
+                        <h4>Expenses & Savings</h4>
+                        <div class="controls-grid">
+                            <div class="form-group">
+                                <label for="analysis-other-expenses">Monthly Non-Housing Expenses ($)</label>
+                                <input type="number" id="analysis-other-expenses" min="0" step="100" value="2500">
+                            </div>
+                            <div class="form-group">
+                                <label for="analysis-savings-rate">Savings Rate (% of discretionary)</label>
+                                <div class="slider-group">
+                                    <input type="range" id="analysis-savings-rate" min="0" max="100" step="5" value="50">
+                                    <input type="number" id="analysis-savings-rate-number" min="0" max="100" step="1" value="50">
+                                    <span>%</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Life Events -->
+                    <div class="settings-section">
+                        <h4>Life Events & Major Expenses</h4>
+                        <div class="form-group">
+                            <button id="add-life-event-btn" class="btn btn-secondary btn-small">Add Life Event</button>
+                            <div id="life-events-list" class="events-table">
+                                <table id="life-events-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Year</th>
+                                            <th>Description</th>
+                                            <th>Type</th>
+                                            <th>Amount ($)</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Events added dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rent vs Buy Comparison -->
+                    <div class="settings-section">
+                        <h4>Rent vs Buy Comparison</h4>
+                        <div class="controls-grid">
+                            <div class="form-group">
+                                <label for="monthly-rent">Current Monthly Rent ($)</label>
+                                <input type="number" id="monthly-rent" min="0" step="50" value="2000">
+                            </div>
+                            <div class="form-group">
+                                <label for="rent-increase">Annual Rent Increase (%)</label>
+                                <input type="number" id="rent-increase" min="0" max="20" step="0.1" value="3">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Investment Assumptions -->
+                    <div class="settings-section">
+                        <h4>Investment Assumptions</h4>
+                        <div class="controls-grid">
+                            <div class="form-group">
+                                <label for="appreciation-rate">Home Appreciation Rate (%)</label>
+                                <div class="slider-group">
+                                    <input type="range" id="appreciation-rate" min="0" max="10" step="0.1" value="3">
+                                    <input type="number" id="appreciation-rate-number" min="0" max="10" step="0.1" value="3">
+                                    <span>%</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="timeframe">Analysis Timeframe (years)</label>
+                                <div class="preset-buttons">
+                                    <button class="preset-btn" data-years="5">5yr</button>
+                                    <button class="preset-btn" data-years="10">10yr</button>
+                                    <button class="preset-btn" data-years="20">20yr</button>
+                                    <button class="preset-btn active" data-years="30">30yr</button>
+                                </div>
+                                <input type="number" id="timeframe" min="1" max="40" value="30">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button id="update-analysis-btn" class="btn btn-primary btn-large">Update Analysis</button>
                 </div>
-
-                <button id="update-analysis-btn" class="btn btn-primary">Update Analysis</button>
             </div>
 
-            <div class="analysis-grid">
-                <div class="chart-container">
-                    <h3>Equity Buildup Over Time</h3>
-                    <canvas id="equity-chart"></canvas>
+            <div class="analysis-results">
+                <h3>Analysis Results</h3>
+
+                <div class="analysis-grid">
+                    <div class="chart-container">
+                        <h3>Income vs Expenses Over Time</h3>
+                        <canvas id="cashflow-chart"></canvas>
+                        <p class="chart-note">Shows income growth, expenses, and net cash flow with life events</p>
+                    </div>
+
+                    <div class="chart-container">
+                        <h3>Net Worth Growth</h3>
+                        <canvas id="networth-chart"></canvas>
+                        <p class="chart-note">Home equity + Investment portfolio with correct monthly contributions</p>
+                    </div>
                 </div>
 
-                <div class="chart-container">
-                    <h3>Investment vs Down Payment</h3>
-                    <canvas id="investment-chart"></canvas>
-                    <p class="chart-note">Compares home equity vs. investing down payment</p>
-                </div>
+                <div class="analysis-grid">
+                    <div class="chart-container">
+                        <h3>Buy vs Rent Comparison</h3>
+                        <canvas id="rent-comparison-chart"></canvas>
+                        <p class="chart-note">Total net worth: buying this house vs. continuing to rent</p>
+                    </div>
 
-                <div class="chart-container">
-                    <h3>Net Worth Impact</h3>
-                    <canvas id="networth-chart"></canvas>
-                </div>
-
-                <div class="chart-container">
-                    <h3>Cash Flow Analysis</h3>
-                    <canvas id="cashflow-chart"></canvas>
+                    <div class="chart-container">
+                        <h3>Home Equity Buildup</h3>
+                        <canvas id="equity-chart"></canvas>
+                        <p class="chart-note">Loan paydown and home appreciation over time</p>
+                    </div>
                 </div>
             </div>
 

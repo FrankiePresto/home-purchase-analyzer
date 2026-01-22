@@ -331,10 +331,10 @@ function renderInvestmentChart(comparisonData) {
 }
 
 /**
- * Chart 5: Net Worth Impact (Area Chart)
- * Total assets minus debt over time
+ * Chart: Net Worth Growth (Stacked Area Chart)
+ * Home equity + Investment portfolio with correct monthly contributions
  */
-function renderNetWorthChart(equityData, investmentData) {
+function renderNetWorthChart(financialProjection, years) {
     const ctx = document.getElementById('networth-chart');
     if (!ctx) return;
 
@@ -342,25 +342,39 @@ function renderNetWorthChart(equityData, investmentData) {
         chartInstances.netWorth.destroy();
     }
 
-    const years = Math.min(equityData.length, investmentData.length);
-    const labels = Array.from({length: years}, (_, i) => `Year ${i + 1}`);
-
-    // Calculate net worth: home equity - loan balance
-    const netWorthData = equityData.slice(0, years).map((d, i) => {
-        return d.equity + (investmentData[i]?.value || 0);
-    });
+    const yearlyData = financialProjection.yearlyData;
+    const labels = yearlyData.map(d => `Year ${d.year}`);
 
     const data = {
         labels: labels,
         datasets: [
             {
-                label: 'Net Worth',
-                data: netWorthData,
-                borderColor: '#2563eb',
-                backgroundColor: 'rgba(37, 99, 235, 0.3)',
+                label: 'Home Equity',
+                data: yearlyData.map(d => d.equity),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.4)',
                 fill: true,
                 tension: 0.4,
-                borderWidth: 3
+                borderWidth: 2
+            },
+            {
+                label: 'Investment Portfolio',
+                data: yearlyData.map(d => d.portfolio),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.4)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2
+            },
+            {
+                label: 'Total Net Worth',
+                data: yearlyData.map(d => d.netWorth),
+                borderColor: '#8b5cf6',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 3,
+                borderDash: [5, 5]
             }
         ]
     };
@@ -370,8 +384,13 @@ function renderNetWorthChart(equityData, investmentData) {
         data: data,
         options: {
             ...defaultChartOptions,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             scales: {
                 y: {
+                    stacked: false,
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
@@ -387,10 +406,10 @@ function renderNetWorthChart(equityData, investmentData) {
 }
 
 /**
- * Chart 6: Cash Flow Analysis (Bar Chart)
- * Annual cash outflows
+ * Chart: Income vs Expenses Over Time (Mixed Chart)
+ * Shows income growth, expenses, and net cash flow with life events
  */
-function renderCashFlowChart(paymentData, years) {
+function renderCashFlowChart(financialProjection, years) {
     const ctx = document.getElementById('cashflow-chart');
     if (!ctx) return;
 
@@ -398,19 +417,42 @@ function renderCashFlowChart(paymentData, years) {
         chartInstances.cashFlow.destroy();
     }
 
-    const annualCost = paymentData.totalPayment * 12;
-    const labels = Array.from({length: years}, (_, i) => `Year ${i + 1}`);
-    const cashFlowData = Array(years).fill(-annualCost);
+    const yearlyData = financialProjection.yearlyData;
+    const labels = yearlyData.map(d => `Year ${d.year}`);
 
     const data = {
         labels: labels,
         datasets: [
             {
-                label: 'Annual Housing Cost',
-                data: cashFlowData,
-                backgroundColor: '#ef4444',
-                borderColor: '#dc2626',
-                borderWidth: 2
+                type: 'line',
+                label: 'Monthly Income',
+                data: yearlyData.map(d => d.monthlyIncome),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 3,
+                yAxisID: 'y'
+            },
+            {
+                type: 'line',
+                label: 'Monthly Expenses',
+                data: yearlyData.map(d => d.monthlyExpenses),
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 3,
+                yAxisID: 'y'
+            },
+            {
+                type: 'bar',
+                label: 'Monthly Discretionary',
+                data: yearlyData.map(d => d.monthlyDiscretionary),
+                backgroundColor: yearlyData.map(d => d.monthlyDiscretionary >= 0 ? 'rgba(16, 185, 129, 0.6)' : 'rgba(239, 68, 68, 0.6)'),
+                borderColor: yearlyData.map(d => d.monthlyDiscretionary >= 0 ? '#10b981' : '#ef4444'),
+                borderWidth: 2,
+                yAxisID: 'y'
             }
         ]
     };
@@ -420,11 +462,37 @@ function renderCashFlowChart(paymentData, years) {
         data: data,
         options: {
             ...defaultChartOptions,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             scales: {
                 y: {
+                    beginAtZero: true,
                     ticks: {
                         callback: function(value) {
                             return formatCurrency(value);
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Monthly Amount ($)'
+                    }
+                }
+            },
+            plugins: {
+                ...defaultChartOptions.plugins,
+                tooltip: {
+                    ...defaultChartOptions.plugins.tooltip,
+                    callbacks: {
+                        afterBody: function(context) {
+                            if (context[0].dataIndex < yearlyData.length) {
+                                const data = yearlyData[context[0].dataIndex];
+                                if (data.oneTimeExpense > 0) {
+                                    return `One-time expense: ${formatCurrency(data.oneTimeExpense)}`;
+                                }
+                            }
+                            return '';
                         }
                     }
                 }
@@ -660,6 +728,132 @@ function renderHousePriceComparisonChart(comparisonData, timeframe) {
     };
 
     chartInstances.houseComparison = new Chart(ctx, config);
+}
+
+/**
+ * Chart: Buy vs Rent Comparison (Multi-line Chart)
+ * Total net worth: buying this house vs. continuing to rent
+ */
+function renderRentComparisonChart(comparison, years) {
+    const ctx = document.getElementById('rent-comparison-chart');
+    if (!ctx) return;
+
+    if (chartInstances.rentComparison) {
+        chartInstances.rentComparison.destroy();
+    }
+
+    const buyData = comparison.buy;
+    const rentData = comparison.rent;
+    const labels = buyData.map(d => `Year ${d.year}`);
+
+    const data = {
+        labels: labels,
+        datasets: [
+            {
+                label: 'Buy House - Total Net Worth',
+                data: buyData.map(d => d.netWorth),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3
+            },
+            {
+                label: 'Buy House - Home Equity',
+                data: buyData.map(d => d.equity),
+                borderColor: '#059669',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 2,
+                borderDash: [5, 5]
+            },
+            {
+                label: 'Buy House - Investment Portfolio',
+                data: buyData.map(d => d.portfolio),
+                borderColor: '#34d399',
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 2,
+                borderDash: [5, 5]
+            },
+            {
+                label: 'Keep Renting - Total Net Worth',
+                data: rentData.map(d => d.netWorth),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 3
+            }
+        ]
+    };
+
+    // Find crossover point
+    let crossoverYear = null;
+    for (let i = 0; i < buyData.length; i++) {
+        if (i === 0) continue;
+        const buyNW = buyData[i].netWorth;
+        const rentNW = rentData[i].netWorth;
+        const prevBuyNW = buyData[i-1].netWorth;
+        const prevRentNW = rentData[i-1].netWorth;
+
+        if ((prevBuyNW < prevRentNW && buyNW >= rentNW) || (prevBuyNW > prevRentNW && buyNW <= rentNW)) {
+            crossoverYear = i;
+            break;
+        }
+    }
+
+    const annotations = {};
+    if (crossoverYear !== null) {
+        annotations.crossover = {
+            type: 'line',
+            xMin: crossoverYear,
+            xMax: crossoverYear,
+            borderColor: '#8b5cf6',
+            borderWidth: 2,
+            borderDash: [10, 5],
+            label: {
+                content: `Break-even: Year ${crossoverYear + 1}`,
+                enabled: true,
+                position: 'start',
+                backgroundColor: '#8b5cf6',
+                color: 'white',
+                font: {
+                    weight: 'bold'
+                }
+            }
+        };
+    }
+
+    const config = {
+        type: 'line',
+        data: data,
+        options: {
+            ...defaultChartOptions,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...defaultChartOptions.plugins,
+                annotation: Object.keys(annotations).length > 0 ? { annotations } : undefined
+            }
+        }
+    };
+
+    chartInstances.rentComparison = new Chart(ctx, config);
 }
 
 /**

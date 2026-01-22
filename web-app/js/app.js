@@ -10,7 +10,9 @@ const appState = {
     selectedTab: 'calculator',
     comparisonSelection: [],
     analysisTimeframe: 30,
-    charts: {}
+    charts: {},
+    incomeAdjustments: [],  // {year: number, income: number}
+    lifeEvents: []  // {year: number, description: string, type: string, amount: number}
 };
 
 // Initialize application when DOM is ready
@@ -125,6 +127,24 @@ function setupEventListeners() {
         savingsSlider.value = this.value;
     });
 
+    // Analysis savings rate slider sync
+    const analysisSavingsSlider = document.getElementById('analysis-savings-rate');
+    const analysisSavingsNumber = document.getElementById('analysis-savings-rate-number');
+
+    analysisSavingsSlider.addEventListener('input', function() {
+        analysisSavingsNumber.value = this.value;
+    });
+
+    analysisSavingsNumber.addEventListener('input', function() {
+        analysisSavingsSlider.value = this.value;
+    });
+
+    // Income adjustment buttons
+    document.getElementById('add-income-adjustment-btn').addEventListener('click', addIncomeAdjustment);
+
+    // Life events buttons
+    document.getElementById('add-life-event-btn').addEventListener('click', addLifeEvent);
+
     // Preset timeframe buttons
     document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -202,6 +222,7 @@ function switchTab(tabName) {
     } else if (tabName === 'analysis') {
         populateAnalysisScenarioSelector();
         populateHouseComparisonSelectors();
+        renderIncomeAdjustments();
     }
 }
 
@@ -578,7 +599,301 @@ function populateAnalysisScenarioSelector() {
 }
 
 /**
- * Handle update analysis button click
+ * Add income adjustment row
+ */
+function addIncomeAdjustment() {
+    const year = prompt('Enter year for income adjustment (1-40):');
+    if (!year || isNaN(year) || year < 1 || year > 40) return;
+
+    const income = prompt('Enter new annual income for that year:');
+    if (!income || isNaN(income) || income < 0) return;
+
+    appState.incomeAdjustments.push({
+        year: parseInt(year),
+        income: parseFloat(income)
+    });
+
+    appState.incomeAdjustments.sort((a, b) => a.year - b.year);
+    renderIncomeAdjustments();
+}
+
+/**
+ * Remove income adjustment
+ */
+function removeIncomeAdjustment(index) {
+    appState.incomeAdjustments.splice(index, 1);
+    renderIncomeAdjustments();
+}
+
+/**
+ * Render income adjustments list
+ */
+function renderIncomeAdjustments() {
+    const container = document.getElementById('income-adjustments-list');
+
+    if (appState.incomeAdjustments.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-light); font-size: 0.875rem; margin-top: 0.5rem;">No adjustments added</p>';
+        return;
+    }
+
+    container.innerHTML = appState.incomeAdjustments.map((adj, index) => `
+        <div class="adjustment-item">
+            <span>Year ${adj.year}: ${formatCurrency(adj.income)}</span>
+            <button onclick="removeIncomeAdjustment(${index})">Remove</button>
+        </div>
+    `).join('');
+}
+
+/**
+ * Add life event
+ */
+function addLifeEvent() {
+    const tbody = document.getElementById('life-events-table').querySelector('tbody');
+    const row = tbody.insertRow();
+    const index = appState.lifeEvents.length;
+
+    row.innerHTML = `
+        <td><input type="number" id="event-year-${index}" min="1" max="40" value="5" style="width: 60px;"></td>
+        <td><input type="text" id="event-desc-${index}" placeholder="e.g., Wedding, New car" value=""></td>
+        <td>
+            <select id="event-type-${index}">
+                <option value="one-time">One-time expense</option>
+                <option value="ongoing">Ongoing cost increase</option>
+                <option value="income">Income change</option>
+            </select>
+        </td>
+        <td><input type="number" id="event-amount-${index}" min="0" step="1000" value="10000"></td>
+        <td><button onclick="removeLifeEvent(${index})">Remove</button></td>
+    `;
+
+    // Add to state with default values
+    appState.lifeEvents.push({
+        year: 5,
+        description: '',
+        type: 'one-time',
+        amount: 10000
+    });
+}
+
+/**
+ * Remove life event
+ */
+function removeLifeEvent(index) {
+    appState.lifeEvents.splice(index, 1);
+
+    // Re-render table
+    const tbody = document.getElementById('life-events-table').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    appState.lifeEvents.forEach((event, i) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td><input type="number" id="event-year-${i}" min="1" max="40" value="${event.year}" style="width: 60px;"></td>
+            <td><input type="text" id="event-desc-${i}" placeholder="e.g., Wedding, New car" value="${event.description}"></td>
+            <td>
+                <select id="event-type-${i}">
+                    <option value="one-time" ${event.type === 'one-time' ? 'selected' : ''}>One-time expense</option>
+                    <option value="ongoing" ${event.type === 'ongoing' ? 'selected' : ''}>Ongoing cost increase</option>
+                    <option value="income" ${event.type === 'income' ? 'selected' : ''}>Income change</option>
+                </select>
+            </td>
+            <td><input type="number" id="event-amount-${i}" min="0" step="1000" value="${event.amount}"></td>
+            <td><button onclick="removeLifeEvent(${i})">Remove</button></td>
+        `;
+    });
+}
+
+/**
+ * Get life events from form
+ */
+function getLifeEventsFromForm() {
+    return appState.lifeEvents.map((event, i) => {
+        const yearInput = document.getElementById(`event-year-${i}`);
+        const descInput = document.getElementById(`event-desc-${i}`);
+        const typeInput = document.getElementById(`event-type-${i}`);
+        const amountInput = document.getElementById(`event-amount-${i}`);
+
+        return {
+            year: yearInput ? parseInt(yearInput.value) : event.year,
+            description: descInput ? descInput.value : event.description,
+            type: typeInput ? typeInput.value : event.type,
+            amount: amountInput ? parseFloat(amountInput.value) : event.amount
+        };
+    });
+}
+
+/**
+ * Calculate year-by-year financials for buying scenario
+ */
+function calculateYearByYearFinancials(scenario, years, annualRaise, baseExpenses, savingsRate, lifeEvents, investmentReturn, appreciationRate) {
+    const monthlyIncome = scenario.incomeInfo.annualIncome / 12;
+    const monthlyHousing = scenario.calculations.totalMonthlyCost;
+    const startingPortfolio = Math.max(0, scenario.incomeInfo.currentPortfolio - scenario.propertyInfo.downPaymentAmount);
+
+    const yearlyData = [];
+    let currentIncome = scenario.incomeInfo.annualIncome;
+    let portfolio = startingPortfolio;
+    let ongoingExpenseAdjustment = 0;
+
+    // Calculate equity buildup
+    const equityData = calculateEquityOverTime(
+        scenario.propertyInfo.purchasePrice,
+        scenario.calculations.loanAmount,
+        scenario.propertyInfo.interestRate,
+        Math.min(years, scenario.propertyInfo.loanTerm),
+        appreciationRate
+    );
+
+    for (let year = 1; year <= years; year++) {
+        // Apply annual raise
+        currentIncome *= (1 + annualRaise / 100);
+
+        // Check for income adjustments
+        const incomeAdj = appState.incomeAdjustments.find(adj => adj.year === year);
+        if (incomeAdj) {
+            currentIncome = incomeAdj.income;
+        }
+
+        const monthlyIncomeThisYear = currentIncome / 12;
+
+        // Calculate expenses for this year
+        let monthlyExpenses = monthlyHousing + baseExpenses + ongoingExpenseAdjustment;
+        let oneTimeExpense = 0;
+
+        // Apply life events
+        lifeEvents.forEach(event => {
+            if (event.year === year) {
+                if (event.type === 'one-time') {
+                    oneTimeExpense += event.amount;
+                } else if (event.type === 'ongoing') {
+                    ongoingExpenseAdjustment += (event.amount / 12);
+                } else if (event.type === 'income') {
+                    currentIncome += event.amount;
+                }
+            }
+        });
+
+        // Recalculate monthly income if income event happened
+        const finalMonthlyIncome = currentIncome / 12;
+
+        // Calculate discretionary and savings
+        const monthlyDiscretionary = finalMonthlyIncome - monthlyExpenses;
+        const monthlySavings = monthlyDiscretionary > 0 ? (monthlyDiscretionary * savingsRate / 100) : 0;
+
+        // Calculate portfolio growth for the year
+        const monthlyRate = investmentReturn / 100 / 12;
+        for (let month = 1; month <= 12; month++) {
+            portfolio += monthlySavings;
+            portfolio *= (1 + monthlyRate);
+        }
+
+        // Subtract one-time expenses from portfolio
+        portfolio = Math.max(0, portfolio - oneTimeExpense);
+
+        const equity = equityData[year - 1]?.equity || 0;
+
+        yearlyData.push({
+            year: year,
+            annualIncome: currentIncome,
+            monthlyIncome: finalMonthlyIncome,
+            monthlyExpenses: monthlyExpenses,
+            monthlyDiscretionary: monthlyDiscretionary,
+            monthlySavings: monthlySavings,
+            oneTimeExpense: oneTimeExpense,
+            portfolio: portfolio,
+            equity: equity,
+            netWorth: portfolio + equity
+        });
+    }
+
+    return {
+        yearlyData: yearlyData,
+        equityData: equityData
+    };
+}
+
+/**
+ * Calculate buy vs rent comparison
+ */
+function calculateBuyVsRent(scenario, initialRent, rentIncrease, years, annualRaise, baseExpenses, savingsRate, lifeEvents, investmentReturn, appreciationRate) {
+    // Calculate buying scenario
+    const buyScenario = calculateYearByYearFinancials(scenario, years, annualRaise, baseExpenses, savingsRate, lifeEvents, investmentReturn, appreciationRate);
+
+    // Calculate renting scenario
+    const rentScenario = [];
+    let currentIncome = scenario.incomeInfo.annualIncome;
+    let portfolio = scenario.incomeInfo.currentPortfolio; // Full portfolio (no down payment needed)
+    let ongoingExpenseAdjustment = 0;
+    let currentRent = initialRent;
+
+    for (let year = 1; year <= years; year++) {
+        // Apply annual raise
+        currentIncome *= (1 + annualRaise / 100);
+
+        // Apply rent increase
+        currentRent *= (1 + rentIncrease / 100);
+
+        // Check for income adjustments
+        const incomeAdj = appState.incomeAdjustments.find(adj => adj.year === year);
+        if (incomeAdj) {
+            currentIncome = incomeAdj.income;
+        }
+
+        const monthlyIncomeThisYear = currentIncome / 12;
+
+        // Calculate expenses for this year (rent instead of housing costs)
+        let monthlyExpenses = currentRent + baseExpenses + ongoingExpenseAdjustment;
+        let oneTimeExpense = 0;
+
+        // Apply life events (same as buy scenario)
+        lifeEvents.forEach(event => {
+            if (event.year === year) {
+                if (event.type === 'one-time') {
+                    oneTimeExpense += event.amount;
+                } else if (event.type === 'ongoing') {
+                    ongoingExpenseAdjustment += (event.amount / 12);
+                } else if (event.type === 'income') {
+                    currentIncome += event.amount;
+                }
+            }
+        });
+
+        const finalMonthlyIncome = currentIncome / 12;
+
+        // Calculate discretionary and savings
+        const monthlyDiscretionary = finalMonthlyIncome - monthlyExpenses;
+        const monthlySavings = monthlyDiscretionary > 0 ? (monthlyDiscretionary * savingsRate / 100) : 0;
+
+        // Calculate portfolio growth for the year
+        const monthlyRate = investmentReturn / 100 / 12;
+        for (let month = 1; month <= 12; month++) {
+            portfolio += monthlySavings;
+            portfolio *= (1 + monthlyRate);
+        }
+
+        // Subtract one-time expenses from portfolio
+        portfolio = Math.max(0, portfolio - oneTimeExpense);
+
+        rentScenario.push({
+            year: year,
+            annualIncome: currentIncome,
+            monthlyRent: currentRent,
+            monthlyExpenses: monthlyExpenses,
+            monthlyDiscretionary: monthlyDiscretionary,
+            monthlySavings: monthlySavings,
+            portfolio: portfolio,
+            netWorth: portfolio // No home equity when renting
+        });
+    }
+
+    return {
+        buy: buyScenario.yearlyData,
+        rent: rentScenario
+    };
+}
+
+/**
+ * Handle update analysis button click - REDESIGNED
  */
 function handleUpdateAnalysis() {
     const selectedScenarioId = document.getElementById('analysis-scenario-select').value;
@@ -597,36 +912,53 @@ function handleUpdateAnalysis() {
         return;
     }
 
+    // Get all inputs
     const timeframe = parseInt(document.getElementById('timeframe').value) || 30;
     const appreciationRate = parseFloat(document.getElementById('appreciation-rate').value) || 3.0;
+    const annualRaise = parseFloat(document.getElementById('annual-raise').value) || 3.0;
+    const otherExpenses = parseFloat(document.getElementById('analysis-other-expenses').value) || 2500;
+    const savingsRate = parseFloat(document.getElementById('analysis-savings-rate').value) || 50;
+    const monthlyRent = parseFloat(document.getElementById('monthly-rent').value) || 2000;
+    const rentIncrease = parseFloat(document.getElementById('rent-increase').value) || 3.0;
 
     const propertyInfo = scenario.propertyInfo;
     const incomeInfo = scenario.incomeInfo;
     const calculations = scenario.calculations;
 
-    // Calculate equity buildup
-    const equityData = calculateEquityOverTime(
-        propertyInfo.purchasePrice,
-        calculations.loanAmount,
-        propertyInfo.interestRate,
-        Math.min(timeframe, propertyInfo.loanTerm),
+    // Get life events from form
+    const lifeEvents = getLifeEventsFromForm();
+
+    // Calculate year-by-year financials
+    const financialProjection = calculateYearByYearFinancials(
+        scenario,
+        timeframe,
+        annualRaise,
+        otherExpenses,
+        savingsRate,
+        lifeEvents,
+        incomeInfo.investmentReturn,
         appreciationRate
     );
 
-    // Calculate investment vs equity
-    // FIXED: Use current portfolio minus down payment as starting point
-    const portfolioAfterDownPayment = Math.max(0, incomeInfo.currentPortfolio - propertyInfo.downPaymentAmount);
-    const investmentComparison = compareInvestmentVsEquity(
-        portfolioAfterDownPayment,
-        equityData,
-        incomeInfo.investmentReturn
+    // Calculate buy vs rent comparison
+    const rentComparison = calculateBuyVsRent(
+        scenario,
+        monthlyRent,
+        rentIncrease,
+        timeframe,
+        annualRaise,
+        otherExpenses,
+        savingsRate,
+        lifeEvents,
+        incomeInfo.investmentReturn,
+        appreciationRate
     );
 
-    // Render charts
-    renderEquityChart(equityData);
-    renderInvestmentChart(investmentComparison);
-    renderNetWorthChart(equityData, investmentComparison.investment);
-    renderCashFlowChart(calculations, timeframe);
+    // Render all charts
+    renderCashFlowChart(financialProjection, timeframe);
+    renderNetWorthChart(financialProjection, timeframe);
+    renderRentComparisonChart(rentComparison, timeframe);
+    renderEquityChart(financialProjection.equityData);
 }
 
 /**
