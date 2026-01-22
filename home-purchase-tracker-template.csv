@@ -1,0 +1,23 @@
+Property Name,Purchase Price,Down Payment %,Down Payment $,Loan Amount,Interest Rate,Loan Term (Years),PMI %,Monthly PMI,Monthly P&I,Monthly Property Tax,Monthly Insurance,Monthly HOA/Condo,Estimated Utilities,Estimated Maintenance,Total Monthly Payment,Total Monthly Cost,Annual Cost,Notes
+123 Main St Example,400000,0.2,80000,320000,0.065,30,0.0075,0,2021.14,400,150,0,200,333,2571.14,3104.14,37250,Sample property for reference
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+
+INSTRUCTIONS:,,,,,,,,,,,,,,,,,,
+"1. Import this CSV into Excel or Google Sheets",,,,,,,,,,,,,,,,,,
+"2. Delete this instructions section",,,,,,,,,,,,,,,,,,
+"3. Follow Excel_Tracker_Instructions.md to add formulas to columns D, E, I, J, P, Q, R",,,,,,,,,,,,,,,,,,
+"4. Format currency and percentage columns as described in the instructions",,,,,,,,,,,,,,,,,,
+"5. Add conditional formatting to highlight best options",,,,,,,,,,,,,,,,,,
+"6. Replace the sample data with your actual properties",,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,
+QUICK FORMULA REFERENCE:,,,,,,,,,,,,,,,,,,
+"Column D (Down Payment $): =B2*C2",,,,,,,,,,,,,,,,,,
+"Column E (Loan Amount): =B2-D2",,,,,,,,,,,,,,,,,,
+"Column I (Monthly PMI): =IF(C2<0.2,(E2*H2)/12,0)",,,,,,,,,,,,,,,,,,
+"Column J (Monthly P&I): =PMT(F2/12,G2*12,-E2)",,,,,,,,,,,,,,,,,,
+"Column P (Total Payment): =J2+I2+K2+L2+M2",,,,,,,,,,,,,,,,,,
+"Column Q (Total Monthly Cost): =P2+N2+O2",,,,,,,,,,,,,,,,,,
+"Column R (Annual Cost): =Q2*12",,,,,,,,,,,,,,,,,,
