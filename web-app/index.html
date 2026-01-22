@@ -246,70 +246,123 @@
             </div>
 
             <div class="house-price-comparison">
-                <h2>House Price Comparison</h2>
-                <p class="section-description">Compare buying a more expensive house vs. a cheaper house and investing the monthly savings</p>
+                <h2>Comprehensive House Comparison</h2>
+                <p class="section-description">Compare two saved scenarios to understand the full financial impact on your wealth, savings, and lifestyle</p>
 
                 <div class="comparison-inputs">
                     <div class="house-input-panel">
-                        <h3>House A (Expensive)</h3>
+                        <h3>Scenario A</h3>
                         <div class="form-group">
-                            <label for="house-a-price">Purchase Price ($)</label>
-                            <input type="number" id="house-a-price" min="0" step="1000" value="500000">
+                            <label for="scenario-a-select">Select Saved Scenario</label>
+                            <select id="scenario-a-select">
+                                <option value="">-- Select a scenario --</option>
+                            </select>
                         </div>
-                        <div class="form-group">
-                            <label for="house-a-down">Down Payment (%)</label>
-                            <input type="number" id="house-a-down" min="0" max="100" step="1" value="20">
-                        </div>
-                        <div class="form-group">
-                            <label for="house-a-rate">Interest Rate (%)</label>
-                            <input type="number" id="house-a-rate" min="0" max="20" step="0.01" value="6.5">
-                        </div>
-                        <div class="form-group">
-                            <label for="house-a-tax">Monthly Property Tax ($)</label>
-                            <input type="number" id="house-a-tax" min="0" step="10" value="500">
-                        </div>
+                        <div id="scenario-a-summary" class="scenario-summary"></div>
                     </div>
 
                     <div class="house-input-panel">
-                        <h3>House B (Cheaper)</h3>
+                        <h3>Scenario B</h3>
                         <div class="form-group">
-                            <label for="house-b-price">Purchase Price ($)</label>
-                            <input type="number" id="house-b-price" min="0" step="1000" value="400000">
+                            <label for="scenario-b-select">Select Saved Scenario</label>
+                            <select id="scenario-b-select">
+                                <option value="">-- Select a scenario --</option>
+                            </select>
                         </div>
+                        <div id="scenario-b-summary" class="scenario-summary"></div>
+                    </div>
+                </div>
+
+                <div class="comparison-additional-inputs">
+                    <h3>Additional Financial Details</h3>
+                    <div class="controls-grid">
                         <div class="form-group">
-                            <label for="house-b-down">Down Payment (%)</label>
-                            <input type="number" id="house-b-down" min="0" max="100" step="1" value="20">
+                            <label for="monthly-other-expenses">Monthly Non-Housing Expenses ($)</label>
+                            <input type="number" id="monthly-other-expenses" min="0" step="100" value="2500">
+                            <small>Food, transportation, utilities (non-home), entertainment, etc.</small>
                         </div>
+
                         <div class="form-group">
-                            <label for="house-b-rate">Interest Rate (%)</label>
-                            <input type="number" id="house-b-rate" min="0" max="20" step="0.01" value="6.5">
+                            <label for="savings-rate">Savings Rate (% of discretionary income)</label>
+                            <div class="slider-group">
+                                <input type="range" id="savings-rate" min="0" max="100" step="5" value="50">
+                                <input type="number" id="savings-rate-number" min="0" max="100" step="1" value="50">
+                                <span>%</span>
+                            </div>
+                            <small>Percentage of leftover money that goes to investments</small>
                         </div>
+
                         <div class="form-group">
-                            <label for="house-b-tax">Monthly Property Tax ($)</label>
-                            <input type="number" id="house-b-tax" min="0" step="10" value="400">
+                            <label for="retirement-age">Target Retirement Age</label>
+                            <input type="number" id="retirement-age" min="30" max="80" step="1" value="65">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="current-age">Current Age</label>
+                            <input type="number" id="current-age" min="18" max="75" step="1" value="30">
                         </div>
                     </div>
                 </div>
 
-                <div class="comparison-summary">
-                    <div class="card">
-                        <h4>Monthly Savings</h4>
-                        <p class="card-value" id="monthly-savings">-</p>
-                        <p class="card-detail">By choosing cheaper house</p>
+                <button id="compare-houses-btn" class="btn btn-primary">Run Comprehensive Comparison</button>
+
+                <div id="comparison-results-section" style="display: none;">
+                    <h3>Financial Impact Comparison</h3>
+
+                    <div class="comparison-summary">
+                        <div class="card">
+                            <h4>Annual Housing Cost Difference</h4>
+                            <p class="card-value" id="annual-cost-diff">-</p>
+                            <p class="card-detail" id="cost-diff-winner">-</p>
+                        </div>
+                        <div class="card">
+                            <h4>Monthly Discretionary Income</h4>
+                            <p class="card-value" id="discretionary-diff">-</p>
+                            <p class="card-detail">Difference after all expenses</p>
+                        </div>
+                        <div class="card">
+                            <h4>Monthly to Investments</h4>
+                            <p class="card-value" id="investment-contribution-diff">-</p>
+                            <p class="card-detail">More invested with better choice</p>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h4>Break-even Point</h4>
-                        <p class="card-value" id="breakeven-year">-</p>
-                        <p class="card-detail">When strategies equalize</p>
+
+                    <div class="comparison-summary">
+                        <div class="card">
+                            <h4>Total Net Worth at <span id="comparison-timeframe">30</span> Years</h4>
+                            <p class="card-value" id="networth-winner">-</p>
+                            <p class="card-detail" id="networth-diff">-</p>
+                        </div>
+                        <div class="card">
+                            <h4>Break-even Point</h4>
+                            <p class="card-value" id="breakeven-year">-</p>
+                            <p class="card-detail">When net worth equalizes</p>
+                        </div>
+                        <div class="card">
+                            <h4>Emergency Fund Coverage</h4>
+                            <p class="card-value" id="emergency-fund-diff">-</p>
+                            <p class="card-detail">Months of expenses covered</p>
+                        </div>
                     </div>
-                    <div class="card">
-                        <h4>Winner at <span id="winner-timeframe">30</span> Years</h4>
-                        <p class="card-value" id="winner-strategy">-</p>
-                        <p class="card-detail" id="winner-amount">-</p>
+
+                    <div class="comparison-summary">
+                        <div class="card">
+                            <h4>Retirement Portfolio Impact</h4>
+                            <p class="card-value" id="retirement-diff">-</p>
+                            <p class="card-detail" id="retirement-detail">-</p>
+                        </div>
+                        <div class="card">
+                            <h4>Financial Freedom Score</h4>
+                            <p class="card-value" id="freedom-score-diff">-</p>
+                            <p class="card-detail">Years to financial independence</p>
+                        </div>
+                        <div class="card">
+                            <h4>Savings Milestone Timeline</h4>
+                            <p class="card-value" id="milestone-diff">-</p>
+                            <p class="card-detail" id="milestone-detail">-</p>
+                        </div>
                     </div>
                 </div>
-
-                <button id="compare-houses-btn" class="btn btn-primary">Compare Houses</button>
 
                 <div class="chart-container">
                     <h3>Total Wealth Comparison</h3>

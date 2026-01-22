@@ -436,8 +436,121 @@ function renderCashFlowChart(paymentData, years) {
 }
 
 /**
- * Chart 7: House Price Comparison (Multi-line/Stacked Area Chart)
+ * Chart 7: Comprehensive House Comparison (Multi-line Chart)
+ * Compare total net worth between two scenarios over time
+ */
+function renderComprehensiveComparisonChart(scenarioA, scenarioB, timeframe) {
+    const ctx = document.getElementById('house-comparison-chart');
+    if (!ctx) return;
+
+    if (chartInstances.houseComparison) {
+        chartInstances.houseComparison.destroy();
+    }
+
+    const years = Math.min(timeframe, scenarioA.netWorthData.length, scenarioB.netWorthData.length);
+    const labels = Array.from({length: years}, (_, i) => `Year ${i + 1}`);
+
+    const datasets = [
+        {
+            label: `${scenarioA.scenario.name} - Home Equity`,
+            data: scenarioA.netWorthData.slice(0, years).map(d => d.equity),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            fill: false,
+            tension: 0.4,
+            borderWidth: 2,
+            borderDash: [5, 5]
+        },
+        {
+            label: `${scenarioA.scenario.name} - Investment Portfolio`,
+            data: scenarioA.netWorthData.slice(0, years).map(d => d.portfolio),
+            borderColor: '#f97316',
+            backgroundColor: 'rgba(249, 115, 22, 0.1)',
+            fill: false,
+            tension: 0.4,
+            borderWidth: 2,
+            borderDash: [5, 5]
+        },
+        {
+            label: `${scenarioA.scenario.name} - Total Net Worth`,
+            data: scenarioA.netWorthData.slice(0, years).map(d => d.totalNetWorth),
+            borderColor: '#dc2626',
+            backgroundColor: 'rgba(220, 38, 38, 0.2)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3
+        },
+        {
+            label: `${scenarioB.scenario.name} - Home Equity`,
+            data: scenarioB.netWorthData.slice(0, years).map(d => d.equity),
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            fill: false,
+            tension: 0.4,
+            borderWidth: 2,
+            borderDash: [5, 5]
+        },
+        {
+            label: `${scenarioB.scenario.name} - Investment Portfolio`,
+            data: scenarioB.netWorthData.slice(0, years).map(d => d.portfolio),
+            borderColor: '#14b8a6',
+            backgroundColor: 'rgba(20, 184, 166, 0.1)',
+            fill: false,
+            tension: 0.4,
+            borderWidth: 2,
+            borderDash: [5, 5]
+        },
+        {
+            label: `${scenarioB.scenario.name} - Total Net Worth`,
+            data: scenarioB.netWorthData.slice(0, years).map(d => d.totalNetWorth),
+            borderColor: '#059669',
+            backgroundColor: 'rgba(5, 150, 105, 0.2)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3
+        }
+    ];
+
+    const data = {
+        labels: labels,
+        datasets: datasets
+    };
+
+    const config = {
+        type: 'line',
+        data: data,
+        options: {
+            ...defaultChartOptions,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return formatCurrency(value);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                ...defaultChartOptions.plugins,
+                title: {
+                    display: false
+                }
+            }
+        }
+    };
+
+    chartInstances.houseComparison = new Chart(ctx, config);
+}
+
+/**
+ * Chart 7 (Old): House Price Comparison (Multi-line/Stacked Area Chart)
  * Compare total wealth: expensive house vs cheaper house + investments
+ * DEPRECATED - kept for backwards compatibility
  */
 function renderHousePriceComparisonChart(comparisonData, timeframe) {
     const ctx = document.getElementById('house-comparison-chart');

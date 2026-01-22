@@ -104,6 +104,27 @@ function setupEventListeners() {
     // Compare houses button
     document.getElementById('compare-houses-btn').addEventListener('click', handleCompareHouses);
 
+    // Scenario selectors for house comparison
+    document.getElementById('scenario-a-select').addEventListener('change', function() {
+        displayScenarioSummary('a', this.value);
+    });
+
+    document.getElementById('scenario-b-select').addEventListener('change', function() {
+        displayScenarioSummary('b', this.value);
+    });
+
+    // Savings rate slider sync
+    const savingsSlider = document.getElementById('savings-rate');
+    const savingsNumber = document.getElementById('savings-rate-number');
+
+    savingsSlider.addEventListener('input', function() {
+        savingsNumber.value = this.value;
+    });
+
+    savingsNumber.addEventListener('input', function() {
+        savingsSlider.value = this.value;
+    });
+
     // Preset timeframe buttons
     document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -180,6 +201,7 @@ function switchTab(tabName) {
         displayScenarioList();
     } else if (tabName === 'analysis') {
         populateAnalysisScenarioSelector();
+        populateHouseComparisonSelectors();
     }
 }
 
@@ -606,49 +628,342 @@ function handleUpdateAnalysis() {
 }
 
 /**
- * Handle compare houses button click
+ * Populate house comparison scenario selectors
+ */
+function populateHouseComparisonSelectors() {
+    const scenarios = loadScenarios();
+    const selectA = document.getElementById('scenario-a-select');
+    const selectB = document.getElementById('scenario-b-select');
+
+    // Clear and repopulate both selectors
+    [selectA, selectB].forEach(select => {
+        select.innerHTML = '<option value="">-- Select a scenario --</option>';
+        scenarios.forEach(scenario => {
+            const option = document.createElement('option');
+            option.value = scenario.id;
+            option.textContent = `${scenario.name} (${formatCurrency(scenario.propertyInfo.purchasePrice)})`;
+            select.appendChild(option);
+        });
+    });
+}
+
+/**
+ * Display scenario summary when selected
+ */
+function displayScenarioSummary(scenarioLetter, scenarioId) {
+    const summaryDiv = document.getElementById(`scenario-${scenarioLetter}-summary`);
+
+    if (!scenarioId) {
+        summaryDiv.innerHTML = '<p class="empty">Select a scenario to see details</p>';
+        summaryDiv.classList.add('empty');
+        return;
+    }
+
+    const scenario = getScenario(scenarioId);
+    if (!scenario) return;
+
+    summaryDiv.classList.remove('empty');
+    summaryDiv.innerHTML = `
+        <p><strong>Price:</strong> ${formatCurrency(scenario.propertyInfo.purchasePrice)}</p>
+        <p><strong>Down Payment:</strong> ${formatCurrency(scenario.propertyInfo.downPaymentAmount)} (${scenario.propertyInfo.downPaymentPercent}%)</p>
+        <p><strong>Monthly Payment:</strong> ${formatCurrency(scenario.calculations.totalPayment)}</p>
+        <p><strong>Total Monthly Cost:</strong> ${formatCurrency(scenario.calculations.totalMonthlyCost)}</p>
+        <p><strong>Annual Income:</strong> ${formatCurrency(scenario.incomeInfo.annualIncome)}</p>
+    `;
+}
+
+/**
+ * Handle compare houses button click - COMPREHENSIVE VERSION
  */
 function handleCompareHouses() {
-    // Get house A data
-    const houseA = {
-        price: parseFloat(document.getElementById('house-a-price').value) || 0,
-        downPayment: parseFloat(document.getElementById('house-a-down').value) || 20,
-        rate: parseFloat(document.getElementById('house-a-rate').value) || 6.5,
-        term: 30,
-        taxes: parseFloat(document.getElementById('house-a-tax').value) || 0,
-        insurance: 150,
-        hoa: 0
-    };
+    const scenarioAId = document.getElementById('scenario-a-select').value;
+    const scenarioBId = document.getElementById('scenario-b-select').value;
 
-    // Get house B data
-    const houseB = {
-        price: parseFloat(document.getElementById('house-b-price').value) || 0,
-        downPayment: parseFloat(document.getElementById('house-b-down').value) || 20,
-        rate: parseFloat(document.getElementById('house-b-rate').value) || 6.5,
-        term: 30,
-        taxes: parseFloat(document.getElementById('house-b-tax').value) || 0,
-        insurance: 150,
-        hoa: 0
-    };
+    if (!scenarioAId || !scenarioBId) {
+        alert('Please select both Scenario A and Scenario B to compare.');
+        return;
+    }
 
+    const scenarioA = getScenario(scenarioAId);
+    const scenarioB = getScenario(scenarioBId);
+
+    if (!scenarioA || !scenarioB) {
+        alert('Error loading scenarios.');
+        return;
+    }
+
+    // Get additional inputs
+    const monthlyOtherExpenses = parseFloat(document.getElementById('monthly-other-expenses').value) || 0;
+    const savingsRate = parseFloat(document.getElementById('savings-rate').value) || 50;
+    const currentAge = parseInt(document.getElementById('current-age').value) || 30;
+    const retirementAge = parseInt(document.getElementById('retirement-age').value) || 65;
     const investmentReturn = parseFloat(document.getElementById('investment-return').value) || 8.0;
     const appreciationRate = parseFloat(document.getElementById('appreciation-rate').value) || 3.0;
     const timeframe = parseInt(document.getElementById('timeframe').value) || 30;
 
-    // Perform comparison
-    const comparison = compareHousePrices(houseA, houseB, investmentReturn, appreciationRate, timeframe);
+    // Perform comprehensive comparison
+    const comparison = runComprehensiveComparison(
+        scenarioA,
+        scenarioB,
+        monthlyOtherExpenses,
+        savingsRate,
+        currentAge,
+        retirementAge,
+        investmentReturn,
+        appreciationRate,
+        timeframe
+    );
 
-    // Update summary cards
-    document.getElementById('monthly-savings').textContent = formatCurrency(comparison.monthlySavings);
-    document.getElementById('breakeven-year').textContent = comparison.breakEvenYear ?
-        `Year ${comparison.breakEvenYear}` : 'Never';
+    // Display results
+    displayComparisonResults(comparison, timeframe);
 
-    document.getElementById('winner-timeframe').textContent = timeframe;
-    document.getElementById('winner-strategy').textContent = comparison.winner === 'cheaper' ?
-        'Cheaper House + Invest' : 'Expensive House';
-    document.getElementById('winner-amount').textContent =
-        `${formatCurrency(comparison.wealthDifference)} more wealth`;
+    // Show results section
+    document.getElementById('comparison-results-section').style.display = 'block';
+}
 
-    // Render chart
-    renderHousePriceComparisonChart(comparison, timeframe);
+/**
+ * Run comprehensive comparison between two scenarios
+ */
+function runComprehensiveComparison(scenarioA, scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe) {
+    // Calculate for Scenario A
+    const resultsA = calculateScenarioFinancials(scenarioA, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe);
+
+    // Calculate for Scenario B
+    const resultsB = calculateScenarioFinancials(scenarioB, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe);
+
+    // Compare results
+    return {
+        scenarioA: resultsA,
+        scenarioB: resultsB,
+        differences: calculateDifferences(resultsA, resultsB),
+        winner: determineWinner(resultsA, resultsB, timeframe)
+    };
+}
+
+/**
+ * Calculate comprehensive financials for a scenario
+ */
+function calculateScenarioFinancials(scenario, otherExpenses, savingsRate, currentAge, retirementAge, investmentReturn, appreciationRate, timeframe) {
+    const monthlyIncome = scenario.incomeInfo.annualIncome / 12;
+    const monthlyHousingCost = scenario.calculations.totalMonthlyCost;
+    const monthlyTotalExpenses = monthlyHousingCost + otherExpenses;
+    const monthlyDiscretionary = monthlyIncome - monthlyTotalExpenses;
+    const monthlyToInvestments = (monthlyDiscretionary * savingsRate) / 100;
+
+    // Starting portfolio after down payment
+    const startingPortfolio = scenario.incomeInfo.currentPortfolio - scenario.propertyInfo.downPaymentAmount;
+
+    // Calculate equity buildup
+    const equityData = calculateEquityOverTime(
+        scenario.propertyInfo.purchasePrice,
+        scenario.calculations.loanAmount,
+        scenario.propertyInfo.interestRate,
+        Math.min(timeframe, scenario.propertyInfo.loanTerm),
+        appreciationRate
+    );
+
+    // Calculate investment portfolio growth
+    const portfolioData = calculateInvestmentGrowth(
+        startingPortfolio > 0 ? startingPortfolio : 0,
+        monthlyToInvestments > 0 ? monthlyToInvestments : 0,
+        investmentReturn,
+        timeframe
+    );
+
+    // Calculate retirement portfolio (years until retirement)
+    const yearsToRetirement = retirementAge - currentAge;
+    let retirementPortfolio = 0;
+    if (yearsToRetirement > 0 && yearsToRetirement <= timeframe) {
+        retirementPortfolio = portfolioData[yearsToRetirement - 1]?.value || 0;
+    } else if (yearsToRetirement > timeframe) {
+        // Extrapolate
+        const lastValue = portfolioData[portfolioData.length - 1]?.value || 0;
+        const remainingYears = yearsToRetirement - timeframe;
+        retirementPortfolio = calculateInvestmentGrowth(lastValue, monthlyToInvestments, investmentReturn, remainingYears);
+        retirementPortfolio = retirementPortfolio[retirementPortfolio.length - 1]?.value || 0;
+    }
+
+    // Calculate net worth over time
+    const netWorthData = equityData.map((equity, index) => {
+        const portfolio = portfolioData[index] || { value: 0 };
+        return {
+            year: equity.year,
+            equity: equity.equity,
+            portfolio: portfolio.value,
+            totalNetWorth: equity.equity + portfolio.value
+        };
+    });
+
+    // Emergency fund coverage (months of total expenses)
+    const monthlyExpenses = monthlyTotalExpenses;
+    const emergencyFundMonths = startingPortfolio > 0 ? startingPortfolio / monthlyExpenses : 0;
+
+    // Financial freedom metrics
+    const annualExpenses = monthlyExpenses * 12;
+    const financialIndependenceNumber = annualExpenses * 25; // 4% rule
+    const yearsToFI = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, financialIndependenceNumber);
+
+    // Milestone timelines ($100k, $500k, $1M)
+    const yearsTo100k = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 100000);
+    const yearsTo500k = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 500000);
+    const yearsTo1M = calculateYearsToGoal(startingPortfolio, monthlyToInvestments, investmentReturn, 1000000);
+
+    return {
+        scenario: scenario,
+        annualHousingCost: monthlyHousingCost * 12,
+        monthlyDiscretionary: monthlyDiscretionary,
+        monthlyToInvestments: monthlyToInvestments,
+        startingPortfolio: startingPortfolio,
+        equityData: equityData,
+        portfolioData: portfolioData,
+        netWorthData: netWorthData,
+        finalNetWorth: netWorthData[timeframe - 1]?.totalNetWorth || 0,
+        retirementPortfolio: retirementPortfolio,
+        emergencyFundMonths: emergencyFundMonths,
+        yearsToFI: yearsToFI,
+        yearsTo100k: yearsTo100k,
+        yearsTo500k: yearsTo500k,
+        yearsTo1M: yearsTo1M
+    };
+}
+
+/**
+ * Calculate years to reach a financial goal
+ */
+function calculateYearsToGoal(startingAmount, monthlyContribution, annualReturn, goalAmount) {
+    if (startingAmount >= goalAmount) return 0;
+    if (monthlyContribution <= 0 && startingAmount < goalAmount) return Infinity;
+
+    const monthlyRate = annualReturn / 100 / 12;
+    let balance = startingAmount;
+    let months = 0;
+    const maxMonths = 100 * 12; // Cap at 100 years
+
+    while (balance < goalAmount && months < maxMonths) {
+        balance += monthlyContribution;
+        balance *= (1 + monthlyRate);
+        months++;
+    }
+
+    return months >= maxMonths ? Infinity : Math.ceil(months / 12);
+}
+
+/**
+ * Calculate differences between two scenarios
+ */
+function calculateDifferences(resultsA, resultsB) {
+    return {
+        annualCost: resultsA.annualHousingCost - resultsB.annualHousingCost,
+        discretionary: resultsA.monthlyDiscretionary - resultsB.monthlyDiscretionary,
+        investments: resultsA.monthlyToInvestments - resultsB.monthlyToInvestments,
+        netWorth: resultsA.finalNetWorth - resultsB.finalNetWorth,
+        retirementPortfolio: resultsA.retirementPortfolio - resultsB.retirementPortfolio,
+        emergencyFund: resultsA.emergencyFundMonths - resultsB.emergencyFundMonths,
+        yearsToFI: resultsA.yearsToFI - resultsB.yearsToFI,
+        milestone100k: resultsA.yearsTo100k - resultsB.yearsTo100k,
+        milestone500k: resultsA.yearsTo500k - resultsB.yearsTo500k,
+        milestone1M: resultsA.yearsTo1M - resultsB.yearsTo1M
+    };
+}
+
+/**
+ * Determine winner and break-even
+ */
+function determineWinner(resultsA, resultsB, timeframe) {
+    // Find break-even year
+    let breakEvenYear = null;
+    for (let i = 0; i < timeframe; i++) {
+        const networthA = resultsA.netWorthData[i]?.totalNetWorth || 0;
+        const networthB = resultsB.netWorthData[i]?.totalNetWorth || 0;
+
+        if (i === 0) continue;
+
+        const prevNetworthA = resultsA.netWorthData[i-1]?.totalNetWorth || 0;
+        const prevNetworthB = resultsB.netWorthData[i-1]?.totalNetWorth || 0;
+
+        // Check if they crossed over
+        if ((prevNetworthA < prevNetworthB && networthA >= networthB) ||
+            (prevNetworthA > prevNetworthB && networthA <= networthB)) {
+            breakEvenYear = i + 1;
+            break;
+        }
+    }
+
+    const finalDiff = resultsA.finalNetWorth - resultsB.finalNetWorth;
+
+    return {
+        winner: finalDiff > 0 ? 'A' : 'B',
+        difference: Math.abs(finalDiff),
+        breakEvenYear: breakEvenYear
+    };
+}
+
+/**
+ * Display comprehensive comparison results
+ */
+function displayComparisonResults(comparison, timeframe) {
+    const { scenarioA, scenarioB, differences, winner } = comparison;
+
+    // Annual cost difference
+    const costDiffAbs = Math.abs(differences.annualCost);
+    const costWinner = differences.annualCost > 0 ? 'B' : 'A';
+    document.getElementById('annual-cost-diff').textContent = formatCurrency(costDiffAbs);
+    document.getElementById('cost-diff-winner').textContent =
+        `Scenario ${costWinner} costs ${formatCurrency(costDiffAbs)} less per year`;
+
+    // Discretionary income difference
+    const discDiffAbs = Math.abs(differences.discretionary);
+    const discWinner = differences.discretionary > 0 ? 'A' : 'B';
+    document.getElementById('discretionary-diff').textContent = formatCurrency(discDiffAbs);
+
+    // Investment contribution difference
+    const invDiffAbs = Math.abs(differences.investments);
+    const invWinner = differences.investments > 0 ? 'A' : 'B';
+    document.getElementById('investment-contribution-diff').textContent = formatCurrency(invDiffAbs);
+
+    // Net worth winner
+    document.getElementById('comparison-timeframe').textContent = timeframe;
+    document.getElementById('networth-winner').textContent = `Scenario ${winner.winner} Wins`;
+    document.getElementById('networth-diff').textContent = `${formatCurrency(winner.difference)} more wealth`;
+
+    // Break-even
+    document.getElementById('breakeven-year').textContent =
+        winner.breakEvenYear ? `Year ${winner.breakEvenYear}` : 'No crossover';
+
+    // Emergency fund
+    const efDiffAbs = Math.abs(differences.emergencyFund);
+    const efWinner = differences.emergencyFund > 0 ? 'A' : 'B';
+    document.getElementById('emergency-fund-diff').textContent = efDiffAbs.toFixed(1);
+
+    // Retirement portfolio
+    const retDiffAbs = Math.abs(differences.retirementPortfolio);
+    const retWinner = differences.retirementPortfolio > 0 ? 'A' : 'B';
+    document.getElementById('retirement-diff').textContent = formatCurrency(retDiffAbs);
+    document.getElementById('retirement-detail').textContent =
+        `Scenario ${retWinner} has ${formatCurrency(retDiffAbs)} more`;
+
+    // Financial freedom
+    if (differences.yearsToFI !== Infinity && differences.yearsToFI !== -Infinity) {
+        const fiDiffAbs = Math.abs(differences.yearsToFI);
+        const fiWinner = differences.yearsToFI > 0 ? 'B' : 'A';
+        document.getElementById('freedom-score-diff').textContent = `${fiDiffAbs} years`;
+    } else {
+        document.getElementById('freedom-score-diff').textContent = 'N/A';
+    }
+
+    // Milestone timeline
+    let milestoneText = '';
+    if (differences.milestone100k !== Infinity && differences.milestone100k !== -Infinity) {
+        const m100kDiff = Math.abs(differences.milestone100k);
+        const m100kWinner = differences.milestone100k > 0 ? 'B' : 'A';
+        milestoneText = `${m100kDiff} years sooner`;
+        document.getElementById('milestone-diff').textContent = milestoneText;
+        document.getElementById('milestone-detail').textContent = `Scenario ${m100kWinner} reaches $100k sooner`;
+    } else {
+        document.getElementById('milestone-diff').textContent = 'N/A';
+        document.getElementById('milestone-detail').textContent = 'Unable to reach milestone';
+    }
+
+    // Render comparison chart
+    renderComprehensiveComparisonChart(scenarioA, scenarioB, timeframe);
 }
